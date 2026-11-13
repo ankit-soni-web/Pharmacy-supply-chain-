@@ -1,0 +1,170 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Public workspace profile for an authorized MP pharmaceutical supply-chain operator.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "role": {
+          "type": "string",
+          "enum": [
+            "STATE_ADMIN",
+            "MANUFACTURER",
+            "CNF_AGENT",
+            "SUPER_STOCKIST",
+            "WHOLESALER",
+            "LOCAL_DISTRIBUTOR",
+            "RETAIL_PHARMACY",
+            "HOSPITAL_PHARMACY"
+          ]
+        },
+        "districtId": { "type": "string", "minLength": 2, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "organizationName": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "pinCode": { "type": "string", "minLength": 6, "maxLength": 10 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "role", "districtId", "createdAt", "updatedAt"]
+    },
+    "UserPrivate": {
+      "title": "UserPrivate",
+      "description": "Isolated PII record for authenticated user contact info and full street address (never shared broadly).",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "maxLength": 254 },
+        "phone": { "type": "string", "minLength": 6, "maxLength": 24 },
+        "fullAddress": { "type": "string", "minLength": 5, "maxLength": 400 },
+        "responseSlaMinutes": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "updatedAt"]
+    },
+    "ContactRequest": {
+      "title": "ContactRequest",
+      "description": "Privacy-scoped rapid-reach contact request limited strictly to 1-hop adjacent supply-chain partners.",
+      "type": "object",
+      "properties": {
+        "requestId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "requesterUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "requesterRole": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "targetNodeId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "targetLevel": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "urgency": { "type": "string", "enum": ["IMMEDIATE_10M", "URGENT_30M"] },
+        "needSummary": { "type": "string", "minLength": 5, "maxLength": 500 },
+        "shareScope": { "type": "string", "enum": ["SINGLE_HOP_ONLY"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "requestId",
+        "requesterUid",
+        "requesterRole",
+        "targetNodeId",
+        "targetLevel",
+        "urgency",
+        "needSummary",
+        "shareScope",
+        "createdAt"
+      ]
+    },
+    "ApprovalDecision": {
+      "title": "ApprovalDecision",
+      "description": "Authorized human approval or rejection of a stock redistribution or replenishment recommendation.",
+      "type": "object",
+      "properties": {
+        "approvalId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "recommendationType": { "type": "string", "enum": ["REDISTRIBUTION", "REPLENISHMENT"] },
+        "medicineName": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "sourceNodeId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "targetNodeId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "quantity": { "type": "number" },
+        "status": { "type": "string", "enum": ["APPROVED", "REJECTED"] },
+        "reviewedByUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "reviewerRole": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "approvalId",
+        "recommendationType",
+        "medicineName",
+        "sourceNodeId",
+        "targetNodeId",
+        "quantity",
+        "status",
+        "reviewedByUid",
+        "reviewerRole",
+        "createdAt"
+      ]
+    },
+    "PharmaDocument": {
+      "title": "PharmaDocument",
+      "description": "Approved pharmaceutical reference document ingested into the RouteRescue AI RAG index.",
+      "type": "object",
+      "properties": {
+        "docId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "category": { "type": "string", "enum": ["REGULATORY", "PRICING", "CLINICAL", "FACILITY", "NEWS"] },
+        "sourceName": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "districtId": { "type": "string", "minLength": 2, "maxLength": 64 },
+        "contentSummary": { "type": "string", "minLength": 10, "maxLength": 10000 },
+        "uploadedByUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "docId",
+        "title",
+        "category",
+        "sourceName",
+        "districtId",
+        "contentSummary",
+        "uploadedByUid",
+        "createdAt"
+      ]
+    },
+    "AuditEntry": {
+      "title": "AuditEntry",
+      "description": "Immutable operational decision and incident audit trail entry.",
+      "type": "object",
+      "properties": {
+        "entryId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "actorUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "actorRole": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "action": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "entityType": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "entityId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "details": { "type": "string", "minLength": 1, "maxLength": 2000 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["entryId", "actorUid", "actorRole", "action", "entityType", "entityId", "details", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Authorized operator workspace profile (non-PII fields)."
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/UserPrivate" },
+      "description": "Isolated PII email, direct phone, and full address record readable only by the profile owner or admin."
+    },
+    "/contact_requests/{requestId}": {
+      "schema": { "$ref": "#/entities/ContactRequest" },
+      "description": "Single-hop privacy-scoped rapid-reach contact requests."
+    },
+    "/approvals/{approvalId}": {
+      "schema": { "$ref": "#/entities/ApprovalDecision" },
+      "description": "Authorized stock transfer and replenishment approval records."
+    },
+    "/pharma_documents/{docId}": {
+      "schema": { "$ref": "#/entities/PharmaDocument" },
+      "description": "Approved pharmaceutical RAG reference documents."
+    },
+    "/audit_logs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditEntry" },
+      "description": "Immutable audit trail entries created by authorized operators."
+    }
+  }
+}

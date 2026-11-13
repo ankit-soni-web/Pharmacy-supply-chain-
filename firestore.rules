@@ -1,0 +1,240 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'ankit.sunar2007@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidRole(role) {
+      return role in [
+        'MANUFACTURER',
+        'CNF_AGENT',
+        'SUPER_STOCKIST',
+        'WHOLESALER',
+        'LOCAL_DISTRIBUTOR',
+        'RETAIL_PHARMACY',
+        'HOSPITAL_PHARMACY'
+      ];
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'displayName', 'role', 'districtId', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'role', 'districtId', 'organizationName', 'pinCode', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.uid == request.auth.uid
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 120
+        && (isValidRole(data.role) || (data.role == 'STATE_ADMIN' && isAdmin()))
+        && data.districtId is string && data.districtId.size() >= 2 && data.districtId.size() <= 64
+        && (!('organizationName' in data) || (data.organizationName is string && data.organizationName.size() <= 160))
+        && (!('pinCode' in data) || (data.pinCode is string && data.pinCode.size() >= 6 && data.pinCode.size() <= 10))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidUserPrivate(data) {
+      return data.keys().hasAll(['uid', 'email', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'phone', 'fullAddress', 'responseSlaMinutes', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.uid == request.auth.uid
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 254
+        && (!('phone' in data) || (data.phone is string && data.phone.size() >= 6 && data.phone.size() <= 24))
+        && (!('fullAddress' in data) || (data.fullAddress is string && data.fullAddress.size() >= 5 && data.fullAddress.size() <= 400))
+        && (!('responseSlaMinutes' in data) || (data.responseSlaMinutes is number && data.responseSlaMinutes >= 1 && data.responseSlaMinutes <= 1440))
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidContactRequest(data) {
+      return data.keys().hasAll([
+          'requestId', 'requesterUid', 'requesterRole', 'targetNodeId',
+          'targetLevel', 'urgency', 'needSummary', 'shareScope', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'requestId', 'requesterUid', 'requesterRole', 'targetNodeId',
+          'targetLevel', 'urgency', 'needSummary', 'shareScope', 'createdAt'
+        ])
+        && isValidId(data.requestId)
+        && isValidId(data.requesterUid)
+        && data.requesterUid == request.auth.uid
+        && data.requesterRole is string && data.requesterRole.size() >= 1 && data.requesterRole.size() <= 64
+        && data.targetNodeId is string && data.targetNodeId.size() >= 1 && data.targetNodeId.size() <= 128
+        && isValidRole(data.targetLevel)
+        && data.urgency in ['IMMEDIATE_10M', 'URGENT_30M']
+        && data.needSummary is string && data.needSummary.size() >= 5 && data.needSummary.size() <= 500
+        && data.shareScope == 'SINGLE_HOP_ONLY'
+        && data.createdAt is timestamp;
+    }
+
+    function isValidApprovalDecision(data) {
+      return data.keys().hasAll([
+          'approvalId', 'recommendationType', 'medicineName', 'sourceNodeId',
+          'targetNodeId', 'quantity', 'status', 'reviewedByUid', 'reviewerRole', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'approvalId', 'recommendationType', 'medicineName', 'sourceNodeId',
+          'targetNodeId', 'quantity', 'status', 'reviewedByUid', 'reviewerRole', 'notes', 'createdAt'
+        ])
+        && isValidId(data.approvalId)
+        && data.recommendationType in ['REDISTRIBUTION', 'REPLENISHMENT']
+        && data.medicineName is string && data.medicineName.size() >= 1 && data.medicineName.size() <= 200
+        && data.sourceNodeId is string && data.sourceNodeId.size() >= 1 && data.sourceNodeId.size() <= 128
+        && data.targetNodeId is string && data.targetNodeId.size() >= 1 && data.targetNodeId.size() <= 128
+        && data.quantity is number && data.quantity > 0 && data.quantity <= 1000000
+        && data.status in ['APPROVED', 'REJECTED']
+        && isValidId(data.reviewedByUid)
+        && data.reviewedByUid == request.auth.uid
+        && data.reviewerRole is string && data.reviewerRole.size() >= 1 && data.reviewerRole.size() <= 64
+        && (!('notes' in data) || (data.notes is string && data.notes.size() <= 1000))
+        && data.createdAt is timestamp;
+    }
+
+    function isValidPharmaDocument(data) {
+      return data.keys().hasAll([
+          'docId', 'title', 'category', 'sourceName', 'districtId',
+          'contentSummary', 'uploadedByUid', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'docId', 'title', 'category', 'sourceName', 'districtId',
+          'contentSummary', 'uploadedByUid', 'createdAt'
+        ])
+        && isValidId(data.docId)
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 240
+        && data.category in ['REGULATORY', 'PRICING', 'CLINICAL', 'FACILITY', 'NEWS']
+        && data.sourceName is string && data.sourceName.size() >= 1 && data.sourceName.size() <= 160
+        && data.districtId is string && data.districtId.size() >= 2 && data.districtId.size() <= 64
+        && data.contentSummary is string && data.contentSummary.size() >= 10 && data.contentSummary.size() <= 10000
+        && isValidId(data.uploadedByUid)
+        && data.uploadedByUid == request.auth.uid
+        && data.createdAt is timestamp;
+    }
+
+    function isValidAuditEntry(data) {
+      return data.keys().hasAll([
+          'entryId', 'actorUid', 'actorRole', 'action', 'entityType', 'entityId', 'details', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'entryId', 'actorUid', 'actorRole', 'action', 'entityType', 'entityId', 'details', 'createdAt'
+        ])
+        && isValidId(data.entryId)
+        && isValidId(data.actorUid)
+        && data.actorUid == request.auth.uid
+        && data.actorRole is string && data.actorRole.size() >= 1 && data.actorRole.size() <= 64
+        && data.action is string && data.action.size() >= 1 && data.action.size() <= 120
+        && data.entityType is string && data.entityType.size() >= 1 && data.entityType.size() <= 64
+        && data.entityId is string && data.entityId.size() >= 1 && data.entityId.size() <= 128
+        && data.details is string && data.details.size() >= 1 && data.details.size() <= 2000
+        && data.createdAt is timestamp;
+    }
+
+    match /admins/{adminId} {
+      allow get: if isSignedIn() && request.auth.uid == adminId;
+      allow list, write: if false;
+    }
+
+    match /test/connection {
+      allow get: if true;
+      allow list, write: if false;
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isSignedIn()
+        && isValidId(userId)
+        && request.auth.uid == userId
+        && isValidUser(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isSignedIn()
+        && isValidId(userId)
+        && (request.auth.uid == userId || isAdmin())
+        && isValidUser(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'role', 'districtId', 'organizationName', 'pinCode', 'updatedAt']);
+      allow delete: if false;
+
+      match /private/{docId} {
+        allow get: if isSignedIn() && isValidId(docId) && (request.auth.uid == userId || isAdmin());
+        allow list: if false;
+        allow create: if isSignedIn()
+          && isValidId(docId)
+          && request.auth.uid == userId
+          && isValidUserPrivate(incoming())
+          && incoming().updatedAt == request.time;
+        allow update: if isSignedIn()
+          && isValidId(docId)
+          && request.auth.uid == userId
+          && isValidUserPrivate(incoming())
+          && incoming().uid == existing().uid
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'phone', 'fullAddress', 'responseSlaMinutes', 'updatedAt']);
+        allow delete: if false;
+      }
+    }
+
+    match /contact_requests/{requestId} {
+      allow get: if isSignedIn() && isValidId(requestId) && (existing().requesterUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.requesterUid == request.auth.uid || isAdmin());
+      allow create: if isSignedIn()
+        && isValidId(requestId)
+        && isValidContactRequest(incoming())
+        && incoming().createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    match /approvals/{approvalId} {
+      allow get: if isSignedIn() && isValidId(approvalId) && (existing().reviewedByUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.reviewedByUid == request.auth.uid || isAdmin());
+      allow create: if isSignedIn()
+        && isValidId(approvalId)
+        && isValidApprovalDecision(incoming())
+        && incoming().createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    match /pharma_documents/{docId} {
+      allow get: if isSignedIn() && isValidId(docId) && (existing().uploadedByUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.uploadedByUid == request.auth.uid || isAdmin());
+      allow create: if isSignedIn()
+        && isValidId(docId)
+        && isValidPharmaDocument(incoming())
+        && incoming().createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    match /audit_logs/{logId} {
+      allow get: if isSignedIn() && isValidId(logId) && (existing().actorUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.actorUid == request.auth.uid || isAdmin());
+      allow create: if isSignedIn()
+        && isValidId(logId)
+        && isValidAuditEntry(incoming())
+        && incoming().createdAt == request.time;
+      allow update, delete: if false;
+    }
+  }
+}
